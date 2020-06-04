@@ -65,8 +65,6 @@ class PersonDetect:
         Defaults to CPU as device for use in the workspace.
         Synchronous requests made within.
         '''
-        #model_xml = model
-        #model_bin = os.path.splitext(model_xml)[0] + ".bin"
 
         # Initialize the plugin
         self.core = IECore()
@@ -79,11 +77,10 @@ class PersonDetect:
         self.exec_net = self.core.load_network(network=self.model, device_name=self.device, num_requests=1)
         print('Network loaded...')
 
-
-
         # Get the input layer
-        #self.input_blob = next(iter(self.exec_net.inputs))
-        #self.output_blob = next(iter(self.exec_net.outputs))
+        self.input_blob = next(iter(self.exec_net.inputs))
+        self.output_blob = next(iter(self.exec_net.outputs))
+        #print(self.input_blob)
         return
    
 
@@ -92,7 +89,10 @@ class PersonDetect:
         TODO: This method needs to be completed by you
         '''
         #p_frame = preprocessing(image, height, width)
+        #print("Start prediction")
         p_frame = self.preprocess_input(image)
+        #print("Created preprocessed image")
+        #print(p_frame.shape)
 
 
 
@@ -101,39 +101,22 @@ class PersonDetect:
         '''
         Makes an asynchronous inference request, given an input image.
         '''
+        #print(self.input_blob)
         input_dict = {self.input_name: p_frame}
-        infer_request_handle = self.exec_net.start_async(request_id=0, inputs=input_dict)
-        
-        infer_status = infer_request_handle.wait()
-        if infer_status == 0:
-            result = infer_request_handle.outputs[self.output_name]
-        
-        #result = result['detection_out']
-        #result = self.preprocess_outputs(result)
-        #self.exec_network.start_async(request_id=0, inputs={self.input_blob: image})
-        #def get_output(self):
-        ### TODO: Extract and return the output results
-        '''
-        Returns a list of the results for the output layer of the network.
-        '''
-        coordinates, out_frame = self.draw_outputs(result, p_frame)
-        return coordinates, image
-    
-
-        ############
-        #def predict(self, image, w, h):
-        #input_img = image
-        #image=self.preprocess_input(image)
-        #input_dict = {self.input_name:image}
-        #infer_request_handle = self.ex_net.start_async(request_id=0, inputs=input_dict)
+        #print(input_dict)
+        #infer_request_handle = self.exec_net.start_async(request_id=0, inputs=input_dict)
+        #print("Starte async request")
         #infer_status = infer_request_handle.wait()
         #if infer_status == 0:
-            #res = infer_request_handle.outputs[self.output_name]
-            
-        #coords, image = self.draw_outputs(res, input_img, w, h)    
-        #return coords, input_img
-    
-    
+            #result = infer_request_handle.outputs[self.output_name]
+        result = self.exec_net.infer(input_dict)
+        result = result['detection_out']
+        #result = np.squeeze(result)
+        #print(result)
+        #print(result.shape)
+
+        coordinates, out_frame = self.draw_outputs(result, image)
+        return coordinates, out_frame   
     
     
     
@@ -141,6 +124,8 @@ class PersonDetect:
         '''
         TODO: This method needs to be completed by you
         '''
+        #print(coords)
+        
         width = int(image.shape[1]) 
         height = int(image.shape[0])
         detections = []
@@ -153,7 +138,8 @@ class PersonDetect:
                 xmax = int(box[5] * width)
                 ymax = int(box[6] * height)
                 cv2.rectangle(image, (xmin, ymin), (xmax, ymax), (0, 0, 255), 1)
-        return coords, image                
+                detections.append(box)
+        return detections, image                
 
 
         
@@ -164,20 +150,42 @@ class PersonDetect:
         output = np.squeeze(outputs)
         return output
 
-    
     def preprocess_input(self, image):
         '''
-        TODO: This method needs to be completed by you
+        This method needs to be completed by you
         '''
-        try:
-            n, c, height, width = self.input_shape
-            #input_img = np.copy(image)
-            input_img= cv2.resize(image, (self.input_shape[3], self.input_shape[2]))
-            input_img = input_img.transpose(2,0,1)
-            input_img = input_img.reshape((n, c, self.input_shape[2], self.input_shape[3]))
-        except Exception as e:
-            print('Preprocess inputs error: ',e)
+        input_img = image
+        
+        # Preprocessing input
+       
+        n, c, h, w = self.input_shape
+        
+        input_img=cv2.resize(input_img, (w, h), interpolation = cv2.INTER_AREA)
+        
+        # Change image from HWC to CHW
+        input_img = input_img.transpose((2, 0, 1))
+        #input_img = input_img.reshape(1, 3, h, w)
+        input_img = input_img.reshape(n, c, h, w)
+        #input_img = input_img.reshape(1, *input_img.shape)
+
         return input_img
+    
+    
+    
+    
+    #def preprocess_input(self, image):
+    #    '''
+    #    TODO: This method needs to be completed by you
+    #    '''
+    #    try:
+    #        n, c, height, width = self.input_shape
+    #        #input_img = np.copy(image)
+    #        input_img= cv2.resize(image, (self.input_shape[3], self.input_shape[2]))
+    #        input_img = input_img.transpose(2,0,1)
+    #        input_img = input_img.reshape((n, c, self.input_shape[2], self.input_shape[3]))
+    #    except Exception as e:
+    #        print('Preprocess inputs error: ',e)
+    #    return input_img
     
 
 
@@ -219,42 +227,42 @@ def main(args):
     counter=0
     start_inference_time=time.time()
 
-    try:
-        while cap.isOpened():
-            ret, frame=cap.read()
-            if not ret:
-                break
-            counter+=1
-            
-            coords, image= pd.predict(frame)
-            num_people= queue.check_coords(coords)
-            print(f"Total People in frame = {len(coords)}")
-            print(f"Number of people in queue = {num_people}")
+    #try:
+    while cap.isOpened():
+        ret, frame=cap.read()
+        if not ret:
+            break
+        counter+=1
+
+        coords, image= pd.predict(frame)
+        num_people= queue.check_coords(coords)
+        print(f"Total People in frame = {len(coords)}")
+        print(f"Number of people in queue = {num_people}")
+        out_text=""
+        y_pixel=25
+
+        for k, v in num_people.items():
+            out_text += f"No. of People in Queue {k} is {v} "
+            if v >= int(max_people):
+                out_text += f" Queue full; Please move to next Queue "
+            cv2.putText(image, out_text, (15, y_pixel), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
             out_text=""
-            y_pixel=25
-            
-            for k, v in num_people.items():
-                out_text += f"No. of People in Queue {k} is {v} "
-                if v >= int(max_people):
-                    out_text += f" Queue full; Please move to next Queue "
-                cv2.putText(image, out_text, (15, y_pixel), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
-                out_text=""
-                y_pixel+=40
-            out_video.write(image)
-            
-        total_time=time.time()-start_inference_time
-        total_inference_time=round(total_time, 1)
-        fps=counter/total_inference_time
+            y_pixel+=40
+        out_video.write(image)
 
-        with open(os.path.join(output_path, 'stats.txt'), 'w') as f:
-            f.write(str(total_inference_time)+'\n')
-            f.write(str(fps)+'\n')
-            f.write(str(total_model_load_time)+'\n')
+    total_time=time.time()-start_inference_time
+    total_inference_time=round(total_time, 1)
+    fps=counter/total_inference_time
 
-        cap.release()
-        cv2.destroyAllWindows()
-    except Exception as e:
-        print("Could not run Inference: ", e)
+    with open(os.path.join(output_path, 'stats.txt'), 'w') as f:
+        f.write(str(total_inference_time)+'\n')
+        f.write(str(fps)+'\n')
+        f.write(str(total_model_load_time)+'\n')
+
+    cap.release()
+    cv2.destroyAllWindows()
+    #except Exception as e:
+        #print("Could not run Inference: ", e)
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser()
