@@ -45,7 +45,7 @@ class PersonDetect:
         self.threshold=threshold
 
         try:
-            self.model=IENetwork(self.model_structure, self.model_weights)
+            self.model = IECore().read_network(self.model_structure, self.model_weights)
         except Exception as e:
             raise ValueError("Could not Initialise the network. Have you enterred the correct model path?")
 
@@ -69,23 +69,21 @@ class PersonDetect:
         #model_bin = os.path.splitext(model_xml)[0] + ".bin"
 
         # Initialize the plugin
-        self.plugin = IECore()
+        self.core = IECore()
 
         # Add a CPU extension, if applicable
-        if cpu_extension and "CPU" in device:
-            self.plugin.add_extension(cpu_extension, device)
+        #if cpu_extension and "CPU" in device:
+        #    self.plugin.add_extension(cpu_extension, device)
 
         # Read the IR as a IENetwork
-        self.network = IENetwork(model=self.model_structure, weights=self.model_weights)
-        print("IENetwork created")
+        self.exec_net = self.core.load_network(network=self.model, device_name=self.device, num_requests=1)
+        print('Network loaded...')
 
-        # Load the IENetwork into the plugin
-        self.exec_network = self.plugin.load_network(self.network, device)
-        print("IENetwork loaded to plugin")
+
 
         # Get the input layer
-        self.input_blob = next(iter(self.network.inputs))
-        self.output_blob = next(iter(self.network.outputs))
+        #self.input_blob = next(iter(self.exec_net.inputs))
+        #self.output_blob = next(iter(self.exec_net.outputs))
         return
    
 
@@ -94,7 +92,7 @@ class PersonDetect:
         TODO: This method needs to be completed by you
         '''
         #p_frame = preprocessing(image, height, width)
-        p_frame = self.preprocess_input(self, image)
+        p_frame = self.preprocess_input(image)
 
 
 
@@ -104,9 +102,14 @@ class PersonDetect:
         Makes an asynchronous inference request, given an input image.
         '''
         input_dict = {self.input_name: p_frame}
-        result = self.exec_network.start_async(request_id=0, inputs=input_dict)
-        result = result['detection_out']
-        result = self.preprocess_outputs(result)
+        infer_request_handle = self.exec_net.start_async(request_id=0, inputs=input_dict)
+        
+        infer_status = infer_request_handle.wait()
+        if infer_status == 0:
+            result = infer_request_handle.outputs[self.output_name]
+        
+        #result = result['detection_out']
+        #result = self.preprocess_outputs(result)
         #self.exec_network.start_async(request_id=0, inputs={self.input_blob: image})
         #def get_output(self):
         ### TODO: Extract and return the output results
@@ -114,9 +117,25 @@ class PersonDetect:
         Returns a list of the results for the output layer of the network.
         '''
         coordinates, out_frame = self.draw_outputs(result, p_frame)
-        return coordinates, out_frame
+        return coordinates, image
     
 
+        ############
+        #def predict(self, image, w, h):
+        #input_img = image
+        #image=self.preprocess_input(image)
+        #input_dict = {self.input_name:image}
+        #infer_request_handle = self.ex_net.start_async(request_id=0, inputs=input_dict)
+        #infer_status = infer_request_handle.wait()
+        #if infer_status == 0:
+            #res = infer_request_handle.outputs[self.output_name]
+            
+        #coords, image = self.draw_outputs(res, input_img, w, h)    
+        #return coords, input_img
+    
+    
+    
+    
     
     def draw_outputs(self, coords, image):
         '''
@@ -127,6 +146,7 @@ class PersonDetect:
         detections = []
         
         for box in coords[0][0]:
+            conf = box[2]
             if conf >= self.threshold:
                 xmin = int(box[3] * width)
                 ymin = int(box[4] * height)
@@ -151,10 +171,10 @@ class PersonDetect:
         '''
         try:
             n, c, height, width = self.input_shape
-            input_img = np.copy(image)
-            input_img=cv2.resize(image, (width, height))
+            #input_img = np.copy(image)
+            input_img= cv2.resize(image, (self.input_shape[3], self.input_shape[2]))
             input_img = input_img.transpose(2,0,1)
-            input_img = input_img.reshape((n, c, height, width))
+            input_img = input_img.reshape((n, c, self.input_shape[2], self.input_shape[3]))
         except Exception as e:
             print('Preprocess inputs error: ',e)
         return input_img

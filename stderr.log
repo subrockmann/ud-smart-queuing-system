@@ -1,4 +1,10 @@
-person_detect.py:48: DeprecationWarning: Reading network using constructor is deprecated. Please, use IECore.read_network() method instead
-  self.model=IENetwork(self.model_structure, self.model_weights)
-person_detect.py:79: DeprecationWarning: Reading network using constructor is deprecated. Please, use IECore.read_network() method instead
-  self.network = IENetwork(model=self.model_structure, weights=self.model_weights)
+
+(python3:19): GStreamer-CRITICAL **: 09:35:47.624: gst_element_make_from_uri: assertion 'gst_uri_is_valid (uri)' failed
+[ WARN:0] global ../opencv/modules/videoio/src/cap_gstreamer.cpp (713) open OpenCV | GStreamer warning: Error opening bin: no source element for URI "/original_videos/Manufacturing.mp4"
+[ WARN:0] global ../opencv/modules/videoio/src/cap_gstreamer.cpp (480) isPipelinePlaying OpenCV | GStreamer warning: GStreamer: pipeline have not been created
+libva info: VA-API version 1.6.0
+libva info: va_getDriverName() returns 0
+libva info: Trying to open /opt/intel/mediasdk/lib64/i965_drv_video.so
+libva info: va_openDriver() returns -1
+MFX: Can't initialize session
+MFX: Invalid FPS passed to encoder

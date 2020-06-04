@@ -1,9 +1,7 @@
 Model initialized
-IENetwork created
-IENetwork loaded to plugin
-Could not run Inference:  preprocess_input() takes 2 positional arguments but 3 were given
+Network loaded...
+Could not run Inference:  float division by zero
 results/
 results/manufacturing/
 results/manufacturing/cpu/
-results/manufacturing/cpu/output_video.mp4
 stderr.log
