@@ -168,25 +168,7 @@ class PersonDetect:
         input_img = input_img.reshape(n, c, h, w)
         #input_img = input_img.reshape(1, *input_img.shape)
 
-        return input_img
-    
-    
-    
-    
-    #def preprocess_input(self, image):
-    #    '''
-    #    TODO: This method needs to be completed by you
-    #    '''
-    #    try:
-    #        n, c, height, width = self.input_shape
-    #        #input_img = np.copy(image)
-    #        input_img= cv2.resize(image, (self.input_shape[3], self.input_shape[2]))
-    #        input_img = input_img.transpose(2,0,1)
-    #        input_img = input_img.reshape((n, c, self.input_shape[2], self.input_shape[3]))
-    #    except Exception as e:
-    #        print('Preprocess inputs error: ',e)
-    #    return input_img
-    
+        return input_img    
 
 
 def main(args):
@@ -227,42 +209,42 @@ def main(args):
     counter=0
     start_inference_time=time.time()
 
-    #try:
-    while cap.isOpened():
-        ret, frame=cap.read()
-        if not ret:
-            break
-        counter+=1
+    try:
+        while cap.isOpened():
+            ret, frame=cap.read()
+            if not ret:
+                break
+            counter+=1
 
-        coords, image= pd.predict(frame)
-        num_people= queue.check_coords(coords)
-        print(f"Total People in frame = {len(coords)}")
-        print(f"Number of people in queue = {num_people}")
-        out_text=""
-        y_pixel=25
-
-        for k, v in num_people.items():
-            out_text += f"No. of People in Queue {k} is {v} "
-            if v >= int(max_people):
-                out_text += f" Queue full; Please move to next Queue "
-            cv2.putText(image, out_text, (15, y_pixel), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
+            coords, image= pd.predict(frame)
+            num_people= queue.check_coords(coords)
+            print(f"Total People in frame = {len(coords)}")
+            print(f"Number of people in queue = {num_people}")
             out_text=""
-            y_pixel+=40
-        out_video.write(image)
+            y_pixel=25
 
-    total_time=time.time()-start_inference_time
-    total_inference_time=round(total_time, 1)
-    fps=counter/total_inference_time
+            for k, v in num_people.items():
+                out_text += f"No. of People in Queue {k} is {v} "
+                if v >= int(max_people):
+                    out_text += f" Queue full; Please move to next Queue "
+                cv2.putText(image, out_text, (15, y_pixel), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
+                out_text=""
+                y_pixel+=40
+            out_video.write(image)
 
-    with open(os.path.join(output_path, 'stats.txt'), 'w') as f:
-        f.write(str(total_inference_time)+'\n')
-        f.write(str(fps)+'\n')
-        f.write(str(total_model_load_time)+'\n')
+        total_time=time.time()-start_inference_time
+        total_inference_time=round(total_time, 1)
+        fps=counter/total_inference_time
 
-    cap.release()
-    cv2.destroyAllWindows()
-    #except Exception as e:
-        #print("Could not run Inference: ", e)
+        with open(os.path.join(output_path, 'stats.txt'), 'w') as f:
+            f.write(str(total_inference_time)+'\n')
+            f.write(str(fps)+'\n')
+            f.write(str(total_model_load_time)+'\n')
+
+        cap.release()
+        cv2.destroyAllWindows()
+    except Exception as e:
+        print("Could not run Inference: ", e)
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser()
