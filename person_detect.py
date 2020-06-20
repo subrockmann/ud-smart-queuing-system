@@ -24,11 +24,25 @@ class Queue:
             frame=image[y_min:y_max, x_min:x_max]
             yield frame
     
-    def check_coords(self, coords):
+    def check_coords(self, coords, initial_w, initial_h):
         d={k+1:0 for k in range(len(self.queues))}
         for coord in coords:
+            dummy = [0,0,0,0]
+            
+            xmin = int(coord[3] * initial_w)
+            ymin = int(coord[4] * initial_h)
+            xmax = int(coord[5] * initial_w)
+            ymax = int(coord[6] * initial_h)
+            
+            dummy[0] = xmin
+            dummy[1] = ymin
+            dummy[2] = xmax
+            dummy[3] = ymax
+            
+            
+            
             for i, q in enumerate(self.queues):
-                if coord[0]>q[0] and coord[2]<q[2]:
+                if dummy[0]>q[0] and dummy[2]<q[2]:
                     d[i+1]+=1
         return d
 
@@ -57,10 +71,6 @@ class PersonDetect:
 
     def load_model(self, device="CPU", cpu_extension=None):
         '''
-        TODO: This method needs to be completed by you
-        '''
-
-        '''
         Load the model given IR files.
         Defaults to CPU as device for use in the workspace.
         Synchronous requests made within.
@@ -68,10 +78,6 @@ class PersonDetect:
 
         # Initialize the plugin
         self.core = IECore()
-
-        # Add a CPU extension, if applicable
-        #if cpu_extension and "CPU" in device:
-        #    self.plugin.add_extension(cpu_extension, device)
 
         # Read the IR as a IENetwork
         self.exec_net = self.core.load_network(network=self.model, device_name=self.device, num_requests=1)
@@ -85,30 +91,16 @@ class PersonDetect:
    
 
     def predict(self, image):
-        '''
-        TODO: This method needs to be completed by you
-        '''
-        #p_frame = preprocessing(image, height, width)
-        #print("Start prediction")
+
         p_frame = self.preprocess_input(image)
-        #print("Created preprocessed image")
-        #print(p_frame.shape)
 
-
-
-        #def exec_net(self, net_inputs):
-        ### TODO: Start an asynchronous request ###
         '''
         Makes an asynchronous inference request, given an input image.
         '''
         #print(self.input_blob)
+        input_name = self.input_name
         input_dict = {self.input_name: p_frame}
-        #print(input_dict)
-        #infer_request_handle = self.exec_net.start_async(request_id=0, inputs=input_dict)
-        #print("Starte async request")
-        #infer_status = infer_request_handle.wait()
-        #if infer_status == 0:
-            #result = infer_request_handle.outputs[self.output_name]
+
         result = self.exec_net.infer(input_dict)
         result = result['detection_out']
         #result = np.squeeze(result)
@@ -217,7 +209,7 @@ def main(args):
             counter+=1
 
             coords, image= pd.predict(frame)
-            num_people= queue.check_coords(coords)
+            num_people= queue.check_coords(coords, initial_w, initial_h)
             print(f"Total People in frame = {len(coords)}")
             print(f"Number of people in queue = {num_people}")
             out_text=""
